@@ -7,15 +7,15 @@ const TOKYO_MIN_WAGE = 1163;
 
 // 勤務体系定義
 const WORK_SYSTEMS = {
-  teikaku10: { id:"teikaku10", label:"定隔10", type:"kakujitsu", shifts:10, teisho:142.5, icon:"🌙", color:"#06b6d4" },
-  teikaku8:  { id:"teikaku8",  label:"定隔8",  type:"kakujitsu", shifts:8,  teisho:114,   icon:"🌙", color:"#06b6d4" },
-  teikaku4:  { id:"teikaku4",  label:"定隔4",  type:"kakujitsu", shifts:4,  teisho:57,    icon:"🌙", color:"#06b6d4" },
-  teihi20:   { id:"teihi20",   label:"定昼20", type:"hirubi",    shifts:20, teisho:150,   icon:"☀️", color:"#f59e0b" },
-  teihi16:   { id:"teihi16",   label:"定昼16", type:"hirubi",    shifts:16, teisho:120,   icon:"☀️", color:"#f59e0b" },
-  teihi8:    { id:"teihi8",    label:"定昼8",  type:"hirubi",    shifts:8,  teisho:60,    icon:"☀️", color:"#f59e0b" },
-  teiyo20:   { id:"teiyo20",   label:"定夜20", type:"yorubi",    shifts:20, teisho:150,   icon:"🌃", color:"#a78bfa" },
-  teiyo16:   { id:"teiyo16",   label:"定夜16", type:"yorubi",    shifts:16, teisho:120,   icon:"🌃", color:"#a78bfa" },
-  teiyo8:    { id:"teiyo8",    label:"定夜8",  type:"yorubi",    shifts:8,  teisho:60,    icon:"🌃", color:"#a78bfa" },
+  teikaku10: { id:"teikaku10", label:"定隔10", type:"kakujitsu", shifts:10, teisho:142.5, icon:"🌙", color:"#06b6d4", startHour:7,  kyukei:3.0 },
+  teikaku8:  { id:"teikaku8",  label:"定隔8",  type:"kakujitsu", shifts:8,  teisho:114,   icon:"🌙", color:"#06b6d4", startHour:7,  kyukei:3.0 },
+  teikaku4:  { id:"teikaku4",  label:"定隔4",  type:"kakujitsu", shifts:4,  teisho:57,    icon:"🌙", color:"#06b6d4", startHour:7,  kyukei:3.0 },
+  teihi20:   { id:"teihi20",   label:"定昼20", type:"hirubi",    shifts:20, teisho:150,   icon:"☀️", color:"#f59e0b", startHour:7,  kyukei:2.0 },
+  teihi16:   { id:"teihi16",   label:"定昼16", type:"hirubi",    shifts:16, teisho:120,   icon:"☀️", color:"#f59e0b", startHour:7,  kyukei:2.0 },
+  teihi8:    { id:"teihi8",    label:"定昼8",  type:"hirubi",    shifts:8,  teisho:60,    icon:"☀️", color:"#f59e0b", startHour:7,  kyukei:2.0 },
+  teiyo20:   { id:"teiyo20",   label:"定夜20", type:"yorubi",    shifts:20, teisho:150,   icon:"🌃", color:"#a78bfa", startHour:18, kyukei:2.0 },
+  teiyo16:   { id:"teiyo16",   label:"定夜16", type:"yorubi",    shifts:16, teisho:120,   icon:"🌃", color:"#a78bfa", startHour:18, kyukei:2.0 },
+  teiyo8:    { id:"teiyo8",    label:"定夜8",  type:"yorubi",    shifts:8,  teisho:60,    icon:"🌃", color:"#a78bfa", startHour:18, kyukei:2.0 },
 };
 
 // シフト定義（始業・終業・深夜時間）
@@ -208,7 +208,20 @@ export default function TeiseiSimulator() {
   const selectedShift = shiftList.find(s => s.id === shiftId) || null;
 
   // 深夜時間（シフトから固定値）
-  const shinyaHours = selectedShift ? selectedShift.shinya : 0;
+  // 深夜時間：シフト始業時刻 + 1乗務労働時間 + 休憩時間 → 拘束終了時刻で計算
+  const shinyaHours = (() => {
+    if (!ws || !selectedShift || totalHours <= 0) return 0;
+    const startH  = selectedShift.start;  // シフト始業時刻
+    const kyukei  = ws.kyukei || 0;
+    const perShiftRodo = totalHours / ws.shifts;
+    const endH    = startH + perShiftRodo + kyukei; // 拘束終了時刻
+    const shinyaStart = 22;
+    const shinyaEnd   = 29; // 翌5:00
+    const overlapStart = Math.max(startH, shinyaStart);
+    const overlapEnd   = Math.min(endH, shinyaEnd);
+    const shinyaPer = Math.max(0, overlapEnd - overlapStart);
+    return Math.round(shinyaPer * ws.shifts * 100) / 100;
+  })();
 
   // 残業時間
   const zangyoTotal = ws ? Math.max(0, totalHours - ws.teisho) : 0;
@@ -497,7 +510,7 @@ export default function TeiseiSimulator() {
                 {ws.label}　{selectedShift.label}（{selectedShift.display}）<br />
                 営収 <span style={{ color:"#fbbf24" }}>{eiSalesInput}万円</span>　
                 総労働 <span style={{ color:"#fbbf24" }}>{totalHoursInput}h</span>　
-                深夜 <span style={{ color:"#818cf8" }}>{fmtH(shinyaHours)}h（固定）</span>　
+                深夜 <span style={{ color:"#818cf8" }}>{fmtH(shinyaHours)}h（🤖自動）</span>　
                 乗務 <span style={{ color:"#fbbf24" }}>{actualShifts}回</span>
               </div>
             </div>
