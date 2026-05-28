@@ -7,15 +7,15 @@ const TOKYO_MIN_WAGE = 1163;
 
 // 勤務体系定義
 const WORK_SYSTEMS = {
-  teikaku10: { id:"teikaku10", label:"定隔10", type:"kakujitsu", shifts:10, teisho:142.5, icon:"🌙", color:"#06b6d4", startHour:7,  kyukei:3.0 },
-  teikaku8:  { id:"teikaku8",  label:"定隔8",  type:"kakujitsu", shifts:8,  teisho:114,   icon:"🌙", color:"#06b6d4", startHour:7,  kyukei:3.0 },
-  teikaku4:  { id:"teikaku4",  label:"定隔4",  type:"kakujitsu", shifts:4,  teisho:57,    icon:"🌙", color:"#06b6d4", startHour:7,  kyukei:3.0 },
-  teihi20:   { id:"teihi20",   label:"定昼20", type:"hirubi",    shifts:20, teisho:150,   icon:"☀️", color:"#f59e0b", startHour:7,  kyukei:1.5 },
-  teihi16:   { id:"teihi16",   label:"定昼16", type:"hirubi",    shifts:16, teisho:120,   icon:"☀️", color:"#f59e0b", startHour:7,  kyukei:1.5 },
-  teihi8:    { id:"teihi8",    label:"定昼8",  type:"hirubi",    shifts:8,  teisho:60,    icon:"☀️", color:"#f59e0b", startHour:7,  kyukei:1.5 },
-  teiyo20:   { id:"teiyo20",   label:"定夜20", type:"yorubi",    shifts:20, teisho:150,   icon:"🌃", color:"#a78bfa", startHour:18, kyukei:1.5 },
-  teiyo16:   { id:"teiyo16",   label:"定夜16", type:"yorubi",    shifts:16, teisho:120,   icon:"🌃", color:"#a78bfa", startHour:18, kyukei:1.5 },
-  teiyo8:    { id:"teiyo8",    label:"定夜8",  type:"yorubi",    shifts:8,  teisho:60,    icon:"🌃", color:"#a78bfa", startHour:18, kyukei:1.5 },
+  teikaku10: { id:"teikaku10", label:"定隔10", type:"kakujitsu", shifts:10, teisho:142.5, icon:"🌙", color:"#06b6d4", startHour:7,  kyukei:3.0, kosokuMax:21, tsukiMax:262, tsukiLimit:270 },
+  teikaku8:  { id:"teikaku8",  label:"定隔8",  type:"kakujitsu", shifts:8,  teisho:114,   icon:"🌙", color:"#06b6d4", startHour:7,  kyukei:3.0, kosokuMax:21, tsukiMax:262, tsukiLimit:270 },
+  teikaku4:  { id:"teikaku4",  label:"定隔4",  type:"kakujitsu", shifts:4,  teisho:57,    icon:"🌙", color:"#06b6d4", startHour:7,  kyukei:3.0, kosokuMax:21, tsukiMax:262, tsukiLimit:270 },
+  teihi20:   { id:"teihi20",   label:"定昼20", type:"hirubi",    shifts:20, teisho:150,   icon:"☀️", color:"#f59e0b", startHour:7,  kyukei:1.5, kosokuMax:12, tsukiMax:288, tsukiLimit:288 },
+  teihi16:   { id:"teihi16",   label:"定昼16", type:"hirubi",    shifts:16, teisho:120,   icon:"☀️", color:"#f59e0b", startHour:7,  kyukei:1.5, kosokuMax:12, tsukiMax:288, tsukiLimit:288 },
+  teihi8:    { id:"teihi8",    label:"定昼8",  type:"hirubi",    shifts:8,  teisho:60,    icon:"☀️", color:"#f59e0b", startHour:7,  kyukei:1.5, kosokuMax:12, tsukiMax:288, tsukiLimit:288 },
+  teiyo20:   { id:"teiyo20",   label:"定夜20", type:"yorubi",    shifts:20, teisho:150,   icon:"🌃", color:"#a78bfa", startHour:18, kyukei:1.5, kosokuMax:12, tsukiMax:288, tsukiLimit:288 },
+  teiyo16:   { id:"teiyo16",   label:"定夜16", type:"yorubi",    shifts:16, teisho:120,   icon:"🌃", color:"#a78bfa", startHour:18, kyukei:1.5, kosokuMax:12, tsukiMax:288, tsukiLimit:288 },
+  teiyo8:    { id:"teiyo8",    label:"定夜8",  type:"yorubi",    shifts:8,  teisho:60,    icon:"🌃", color:"#a78bfa", startHour:18, kyukei:1.5, kosokuMax:12, tsukiMax:288, tsukiLimit:288 },
 };
 
 // シフト定義（始業・終業・深夜時間）
@@ -213,14 +213,15 @@ export default function TeiseiSimulator() {
     if (!ws || !selectedShift || totalHours <= 0) return 0;
     const startH  = selectedShift.start;  // シフト始業時刻
     const kyukei  = ws.kyukei || 0;
-    const perShiftRodo = totalHours / ws.shifts;
+    const actualShiftsNum = shifts > 0 ? shifts : ws.shifts;
+    const perShiftRodo = totalHours / actualShiftsNum;
     const endH    = startH + perShiftRodo + kyukei; // 拘束終了時刻
     const shinyaStart = 22;
     const shinyaEnd   = 29; // 翌5:00
     const overlapStart = Math.max(startH, shinyaStart);
     const overlapEnd   = Math.min(endH, shinyaEnd);
     const shinyaPer = Math.max(0, overlapEnd - overlapStart);
-    return Math.round(shinyaPer * ws.shifts * 100) / 100;
+    return Math.round(shinyaPer * actualShiftsNum * 100) / 100;
   })();
 
   // 残業時間
@@ -432,6 +433,55 @@ export default function TeiseiSimulator() {
                    `⏱ 残業 ${fmtH(zangyoTotal)}h`}
                 </div>
               )}
+              {/* 拘束時間警告 */}
+              {ws && totalHours > 0 && shifts > 0 && (() => {
+                const actualS     = shifts > 0 ? shifts : ws.shifts;
+                const perShiftR   = totalHours / actualS;
+                const kosokuPer   = perShiftR + ws.kyukei;
+                const kosokuTsuki = totalHours + ws.kyukei * actualS;
+                const overPer     = kosokuPer - ws.kosokuMax;
+                const overTsuki   = kosokuTsuki - ws.tsukiMax;
+                const overLimit   = kosokuTsuki - ws.tsukiLimit;
+                const warnings = [];
+
+                if (overPer > 0) {
+                  warnings.push({
+                    level:"🚫", color:"#ff4444", bg:"rgba(255,50,50,0.12)", border:"rgba(255,50,50,0.4)",
+                    title:"1乗務の拘束時間が上限超過",
+                    body:`1乗務の拘束時間：${fmtH(kosokuPer)}h（上限 ${ws.kosokuMax}h を ${fmtH(overPer)}h 超過）`,
+                    note:"→ 入力ミスの確認、または休日出勤が必要です",
+                  });
+                }
+                if (overLimit > 0) {
+                  warnings.push({
+                    level:"🚫", color:"#ff4444", bg:"rgba(255,50,50,0.12)", border:"rgba(255,50,50,0.4)",
+                    title:"月間拘束時間が絶対上限超過（改善基準告示違反）",
+                    body:`月間拘束時間：${fmtH(kosokuTsuki)}h（上限 ${ws.tsukiLimit}h を ${fmtH(overLimit)}h 超過）`,
+                    note:"→ 入力ミスの確認が必要です",
+                  });
+                } else if (overTsuki > 0 && ws.type === "kakujitsu") {
+                  warnings.push({
+                    level:"⚠️", color:"#f59e0b", bg:"rgba(251,191,36,0.10)", border:"rgba(251,191,36,0.35)",
+                    title:"月間拘束時間が通常上限超過",
+                    body:`月間拘束時間：${fmtH(kosokuTsuki)}h（通常上限 ${ws.tsukiMax}h を ${fmtH(overTsuki)}h 超過）`,
+                    note:"→ 労使協定（年6か月まで最大270h）が必要です",
+                  });
+                }
+                if (warnings.length === 0) return null;
+                return (
+                  <div style={{ display:"flex", flexDirection:"column", gap:4, marginTop:6 }}>
+                    {warnings.map((w,i) => (
+                      <div key={i} style={{ padding:"8px 12px", borderRadius:8, fontSize:10,
+                        background:w.bg, border:`2px solid ${w.border}`,
+                        color:w.color, lineHeight:1.8 }}>
+                        <div style={{ fontWeight:700, fontSize:11, marginBottom:2 }}>{w.level} {w.title}</div>
+                        <div>{w.body}</div>
+                        <div style={{ marginTop:3, color:w.color+"cc" }}>{w.note}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
             <div>
               <Lbl text="実乗務回数"
